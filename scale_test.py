@@ -14,10 +14,10 @@ TARGET_USER = "ubuntu"
 KEY_PATH = "~/.ssh/other_vm_key"
 
 Tests = {
-    "1": ("unified_support_hub_tests.json", "Platform_Support_Frontend_Service_Coveo_API"),
-    "2": ("unified_support_hub_feedback_service_api_tests.json", "Platform_Support_Frontend_Service_Feedback_Service_API"),
-    "3": ("unified_support_hub_platform_chat_proxy_service_tests.json", "Platform_Chat_Proxy_Service"),
-    "4": ("support_case_services.json", "Support_Case_Services_API")
+    "1": ("unified_support_hub_tests.json", "Platform Support Frontend Service Coveo API"),
+    "2": ("unified_support_hub_feedback_service_api_tests.json", "Platform Support Frontend Service Feedback Service API"),
+    "3": ("unified_support_hub_platform_chat_proxy_service_tests.json", "Platform Chat Proxy Service"),
+    "4": ("support_case_services.json", "Support Case Services API")
 }
 
 def print_available_tests():
@@ -87,10 +87,9 @@ def main():
     commands = [
         f"docker exec -it f8cfb046a842 bash -c 'cd /home/dev/repo/ws/stash.arubanetworks.com/ccs/ccs-scale/ && git pull && poetry run python locustfile.py -u users.json -t test_jsons/{json_file} -s task -n {num_users} -d {duration}'"
     ]
-
     timestamp = datetime.now().strftime("%d-%m-%Y_%I.%M%p")
-    desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
-    output_file = os.path.join(desktop_path, f"{test_name}_{timestamp}.log")
+    current_directory = os.getcwd()
+    output_file = os.path.join(current_directory, f"{test_name}_{timestamp}.log")
     run_commands_on_vm(JUMP_HOST, JUMP_USER, TARGET_HOST, TARGET_USER, KEY_PATH, commands, output_file)
 
 if __name__ == "__main__":
