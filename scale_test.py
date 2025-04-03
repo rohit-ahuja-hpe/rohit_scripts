@@ -85,8 +85,8 @@ def get_json_file_and_users_and_time():
 def main():
     json_file, num_users, duration, test_name = get_json_file_and_users_and_time()
     commands = [
-        f"docker exec -it f8cfb046a842 bash -c 'cd /home/dev/repo/ws/stash.arubanetworks.com/ccs/ccs-scale/ && git pull && poetry run python locustfile.py -u users.json -t test_jsons/{json_file} -s task -n {num_users} -d {duration}'"
-    ]
+    f"docker exec -it f8cfb046a842 bash -c 'cd /home/dev/repo/ws/stash.arubanetworks.com/ccs/ccs-scale/ && git pull && export PATH=\"$HOME/.local/bin:$PATH\" && poetry run python locustfile.py -u users.json -t test_jsons/{json_file} -s task -n {num_users} -d {duration}'"
+]
     timestamp = datetime.now().strftime("%d-%m-%Y_%I.%M%p")
     current_directory = os.getcwd()
     output_file = os.path.join(current_directory, f"{test_name}_{timestamp}.log")
