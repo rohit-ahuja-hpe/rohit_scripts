@@ -57,7 +57,31 @@ get_latest_run_id() {
 
 # Function to continuously watch service logs
 watch_service_logs() {
-    local service_name="use-platform-support-frontend-service-coveo"
+    get_branch_inputs
+    printf "Choose service to watch logs for:\n"
+    printf "1. use-platform-support-frontend-service-coveo\n"
+    printf "2. use-platform-support-frontend-service-feedback\n"
+    printf "3. use-support-case-services\n"
+    printf "4. Enter service name manually\n"
+    read -p "Enter your choice: " choice
+    case $choice in
+        1)
+            service_name="use-platform-support-frontend-service-coveo"
+            ;;
+        2)
+            service_name="use-platform-support-frontend-service-feedback"
+            ;;
+        3)
+            service_name="use-support-case-services"
+            ;;
+        4)
+            read -p "Enter service name: " service_name
+            ;;
+        *)
+            printf "Invalid choice. Exiting...\n"
+            exit 1
+            ;;
+    esac
     printf "Starting continuous log monitoring for service: %s\n" "$service_name"
     printf "Press Ctrl+C to stop monitoring logs\n"
 
@@ -98,7 +122,7 @@ watch_service_logs() {
 run_workflow() {
     # Start the workflow
     printf "Starting workflow on branch %s...\n" "$BRANCH"
-    gh workflow run "run_use_platform_support_frontend_service_coveo_api_scale.yaml" \
+    gh workflow run "$WORKFLOW_NAME" \
         --ref "$BRANCH" \
         -f version="$VERSION" \
         -f replicas="$REPLICAS" \
@@ -114,7 +138,7 @@ run_workflow() {
         sleep 5
 
         # Get the run ID of the latest workflow
-        RUN_ID=$(gh run list --workflow "run_use_platform_support_frontend_service_coveo_api_scale.yaml" --limit 1 --json databaseId --jq '.[0].databaseId')
+        RUN_ID=$(gh run list --workflow "$WORKFLOW_NAME" --limit 1 --json databaseId --jq '.[0].databaseId')
 
         if [ ! -z "$RUN_ID" ]; then
             printf "Run ID: %s\n" "$RUN_ID"
@@ -130,52 +154,120 @@ run_workflow() {
 
             # Show final status
             gh run view "$RUN_ID"
-
-            # Start continuous log monitoring
-            printf "\nStarting continuous log monitoring...\n"
-            watch_service_logs
         else
-            printf "Could not get run ID. Please check the workflow status manually.\n"
+            printf "Failed to start workflow\n"
+            exit 1
         fi
     else
         printf "Failed to start workflow\n"
         exit 1
     fi
+
+}
+
+ask_workflow_name() {
+    # Ask for the workflow name
+    printf "\033[1;33mSelect from the available workflows or Enter the workflow name:\033[0m\n"
+    printf "1. run_use_platform_support_frontend_service_coveo_api_scale.yaml\n"
+    printf "2. run_use_platform_support_frontend_service_feedback_api_scale.yaml\n"
+    printf "3. run_use_support_case_services_api_scale.yaml\n"
+    printf "Enter your choice or the workflow name: "
+    read -r choice
+
+    case $choice in
+        1)
+            WORKFLOW_NAME="run_use_platform_support_frontend_service_coveo_api_scale.yaml"
+            ;;
+        2)
+            WORKFLOW_NAME="run_use_platform_support_frontend_service_feedback_api_scale.yaml"
+            ;;
+        3)
+            WORKFLOW_NAME="run_use_support_case_services_api_scale.yaml"
+            ;;
+        *)
+            WORKFLOW_NAME="$choice"
+            ;;
+    esac
+}
+
+get_branch_inputs() {
+    # Get the current branch or ask for it
+    BRANCH=$(get_current_branch)
+
+    # Confirm branch or ask for a different one
+    printf "\033[1;34mPlease enter the following required values:\033[0m\n"
+    printf "\033[1;33mDo you want to use \"$BRANCH\" branch? (y/N): \033[0m"
+    read -r use_different_branch
+    if [[ $use_different_branch =~ ^[Nn]$ ]]; then
+        BRANCH=$(get_input "$(printf "\033[1;33mEnter branch name\033[0m")")
+    fi
+}
+get_inputs() {
+
+    get_branch_inputs
+    # Get all required inputs
+    VERSION=$(get_input "$(printf "\033[1;33mEnter version\033[0m")")
+    REPLICAS=$(get_input "$(printf "\033[1;33mEnter number of replicas\033[0m")")
+    NUM_USERS=$(get_input "$(printf "\033[1;33mEnter number of users\033[0m")")
+    SPAWN_RATE=$(get_input "$(printf "\033[1;33mEnter spawn rate\033[0m")")
+    TEST_DURATION=$(get_input "$(printf "\033[1;33mEnter test duration in seconds\033[0m")")
+
+    # Confirm parameters
+    printf "\n\033[1;32mWorkflow will run with these parameters:\033[0m\n"
+    printf "\033[1;36mBranch:\033[0m %s\n" "$BRANCH"
+    printf "\033[1;36mWorkflow Name:\033[0m %s\n" "$WORKFLOW_NAME"
+    printf "\033[1;36mVersion:\033[0m %s\n" "$VERSION"
+    printf "\033[1;36mReplicas:\033[0m %s\n" "$REPLICAS"
+    printf "\033[1;36mNumber of Users:\033[0m %s\n" "$NUM_USERS"
+    printf "\033[1;36mSpawn Rate:\033[0m %s\n" "$SPAWN_RATE"
+    printf "\033[1;36mTest Duration:\033[0m %s\n" "$TEST_DURATION"
+    printf "\n\033[1;33mDo you want to proceed with these parameters? (y/N): \033[0m"
+    read -r proceed
+    if [[ $proceed =~ ^[Nn]$ ]]; then
+        printf "Exiting...\n"
+        exit 0
+    fi
+}
+
+
+show_menu() {
+    printf "Please select an option:\n"
+    printf "1. Run Performance Test\n"
+    printf "2. Watch Service Logs\n"
+    printf "3. Stop Performance Test\n"
+    printf "4. Exit\n"
+    read -p "Enter your choice: " choice
+
+    case $choice in
+        1)  
+            ask_workflow_name
+            get_inputs
+            run_workflow
+            ;;
+        2)
+            watch_service_logs
+            ;;
+        3) 
+            printf "\033[1;33mSet the replicas to 0 to stop the test\033[0m\n"
+            get_inputs
+            run_workflow
+            printf "Performance test stopped.\n"
+            ;;
+        4)
+            printf "Exiting...\n"
+            exit 0
+            ;;
+        *)
+            printf "Invalid choice. Please try again.\n"
+            show_menu
+            ;;
+    esac
 }
 
 # Check for gh CLI
 check_gh
 
-# Get the current branch or ask for it
-BRANCH=$(get_current_branch)
+while true; do
+    show_menu
+done
 
-# Confirm branch or ask for a different one
-printf "Please enter the following required values:\n"
-read -p "Do you want to use "$BRANCH" branch? (y/N): " use_different_branch
-if [[ $use_different_branch =~ ^[Nn]$ ]]; then
-    BRANCH=$(get_input "Enter branch name")
-fi
-
-# Get all required inputs
-VERSION=$(get_input "Enter version")
-REPLICAS=$(get_input "Enter number of replicas")
-NUM_USERS=$(get_input "Enter number of users")
-SPAWN_RATE=$(get_input "Enter spawn rate")
-TEST_DURATION=$(get_input "Enter test duration in seconds")
-
-# Confirm parameters
-printf "\nWorkflow will run with these parameters:\n"
-printf "Branch: %s\n" "$BRANCH"
-printf "Version: %s\n" "$VERSION"
-printf "Replicas: %s\n" "$REPLICAS"
-printf "Number of Users: %s\n" "$NUM_USERS"
-printf "Spawn Rate: %s\n" "$SPAWN_RATE"
-printf "Test Duration: %s\n" "$TEST_DURATION"
-
-read -p "Continue? (y/N): " confirm
-if [[ $confirm =~ ^[Yy]$ ]]; then
-    run_workflow
-else
-    printf "Cancelled\n"
-    exit 0
-fi
