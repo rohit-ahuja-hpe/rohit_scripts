@@ -62,7 +62,7 @@ watch_service_logs() {
     printf "1. use-platform-support-frontend-service-coveo\n"
     printf "2. use-platform-support-frontend-service-feedback\n"
     printf "3. use-support-case-services\n"
-    printf "4. Enter service name manually\n"
+    printf "4. Enter service name\n"
     read -p "Enter your choice: " choice
     case $choice in
         1)
@@ -229,7 +229,6 @@ get_inputs() {
     fi
 }
 
-
 show_menu() {
     printf "Please select an option:\n"
     printf "1. Run Performance Test\n"
@@ -249,9 +248,10 @@ show_menu() {
             ;;
         3) 
             printf "\033[1;33mSet the replicas to 0 to stop the test\033[0m\n"
+            ask_workflow_name
             get_inputs
             run_workflow
-            printf "Performance test stopped.\n"
+            printf "\033[1;32mPerformance test stopped.\033[0m\n"
             ;;
         4)
             printf "Exiting...\n"
