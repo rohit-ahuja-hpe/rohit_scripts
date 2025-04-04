@@ -55,10 +55,8 @@ get_latest_run_id() {
     echo "$run_id"
 }
 
-# Function to continuously watch service logs
-watch_service_logs() {
-    get_branch_inputs
-    printf "Choose service to watch logs for:\n"
+choose_service_name() {
+    printf "Choose service name:\n"
     printf "1. use-platform-support-frontend-service-coveo\n"
     printf "2. use-platform-support-frontend-service-feedback\n"
     printf "3. use-support-case-services\n"
@@ -82,6 +80,11 @@ watch_service_logs() {
             exit 1
             ;;
     esac
+}
+# Function to continuously watch service logs
+watch_service_logs() {
+    get_branch_inputs
+    choose_service_name
     printf "Starting continuous log monitoring for service: %s\n" "$service_name"
     printf "Press Ctrl+C to stop monitoring logs\n"
 
@@ -171,7 +174,8 @@ ask_workflow_name() {
     printf "1. run_use_platform_support_frontend_service_coveo_api_scale.yaml\n"
     printf "2. run_use_platform_support_frontend_service_feedback_api_scale.yaml\n"
     printf "3. run_use_support_case_services_api_scale.yaml\n"
-    printf "Enter your choice or the workflow name: "
+    printf "4. Enter workflow name\n"
+    printf "Enter your choice: "
     read -r choice
 
     case $choice in
@@ -183,6 +187,20 @@ ask_workflow_name() {
             ;;
         3)
             WORKFLOW_NAME="run_use_support_case_services_api_scale.yaml"
+            ;;
+        4)
+            # Ask for the workflow name
+            printf "Enter workflow name: "
+            read -r choice
+            if [ -z "$choice" ]; then
+                printf "No input received, exiting...\n"
+                exit 1
+            fi
+            # Validate the workflow name
+            if [[ ! $choice =~ ^run_.*\.yaml$ ]]; then
+                printf "Invalid workflow name format. Exiting...\n"
+                exit 1
+            fi
             ;;
         *)
             WORKFLOW_NAME="$choice"
@@ -229,12 +247,58 @@ get_inputs() {
     fi
 }
 
+get_deployments_and_pods() {
+    printf "\033[1;33mSelect from the available services or Enter the service name\033[0m\n"
+    printf "\033[1;33mPlease enter service name as all if you want to get all deployments and pods\033[0m\n"
+    choose_service_name
+
+    printf "Fetching deployments and pods information for service: %s...\n" "$service_name"
+
+    # Run the workflow to get deployments and pods
+    gh workflow run get_deployments_and_pods.yaml
+
+    if [ $? -eq 0 ]; then
+        printf "Workflow started successfully!\n"
+
+        # Wait for workflow to appear in list
+        printf "Waiting for workflow to start...\n"
+        sleep 5
+
+        # Get the run ID of the latest workflow
+        RUN_ID=$(gh run list --workflow get_deployments_and_pods.yaml --limit 1 --json databaseId --jq '.[0].databaseId')
+
+        if [ ! -z "$RUN_ID" ]; then
+            printf "Run ID: %s\n" "$RUN_ID"
+
+            # Watch the run
+            printf "Showing workflow progress...\n"
+            gh run watch "$RUN_ID"
+
+            # Show logs
+            printf "\nShowing workflow logs...\n"
+            if [ "$service_name" == "all" ]; then
+                gh run view "$RUN_ID" --log
+            else
+                gh run view "$RUN_ID" --log | grep "$service_name"
+            fi
+        else
+            printf "Failed to start workflow\n"
+            exit 1
+        fi
+    else
+        printf "Failed to start workflow\n"
+        exit 1
+    fi
+
+    exit 0
+}
 show_menu() {
     printf "Please select an option:\n"
     printf "1. Run Performance Test\n"
     printf "2. Watch Service Logs\n"
     printf "3. Stop Performance Test\n"
-    printf "4. Exit\n"
+    printf "4. Get Deployments and Pods\n"
+    printf "5. Exit\n"
     read -p "Enter your choice: " choice
 
     case $choice in
@@ -254,6 +318,9 @@ show_menu() {
             printf "\033[1;32mPerformance test stopped.\033[0m\n"
             ;;
         4)
+            get_deployments_and_pods
+            ;;
+        5)
             printf "Exiting...\n"
             exit 0
             ;;
