@@ -316,6 +316,7 @@ show_menu() {
             get_inputs
             run_workflow
             printf "\033[1;32mPerformance test stopped.\033[0m\n"
+            exit 0
             ;;
         4)
             get_deployments_and_pods
