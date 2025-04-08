@@ -311,10 +311,32 @@ show_menu() {
             watch_service_logs
             ;;
         3) 
-            printf "\033[1;33mSet the replicas to 0 to stop the test\033[0m\n"
             ask_workflow_name
-            get_inputs
+            get_branch_inputs
+            VERSION=$(get_input "$(printf "\033[1;33mEnter version\033[0m")")
+            REPLICAS="0"
+            NUM_USERS="1"
+            SPAWN_RATE="1"
+            TEST_DURATION="1"
+            # Confirm parameters
+            printf "\n\033[1;32mStopping workflow with these parameters:\033[0m\n"
+            printf "\033[1;36mBranch:\033[0m %s\n" "$BRANCH"
+            printf "\033[1;36mWorkflow Name:\033[0m %s\n" "$WORKFLOW_NAME"
+            printf "\033[1;36mVersion:\033[0m %s\n" "$VERSION"
+            printf "\033[1;36mReplicas:\033[0m %s\n" "$REPLICAS"
+            printf "\033[1;36mNumber of Users:\033[0m %s\n" "$NUM_USERS"
+            printf "\033[1;36mSpawn Rate:\033[0m %s\n" "$SPAWN_RATE"
+            printf "\033[1;36mTest Duration:\033[0m %s\n" "$TEST_DURATION"
+            printf "\n\033[1;33mDo you want to proceed with these parameters? (y/N): \033[0m"
+
+            read -r proceed
+            if [[ $proceed =~ ^[Nn]$ ]]; then
+            printf "Exiting...\n"
+            exit 0
+            fi
+            
             run_workflow
+
             printf "\033[1;32mPerformance test stopped.\033[0m\n"
             exit 0
             ;;
