@@ -69,7 +69,25 @@ get_version() {
         echo "No runs found for workflow manual_build.yaml on branch ${BRANCH}."
         return 1
     fi
-    gh run view "$run_id" --log | grep 'Updating coreupdate updateservicectl package create' | sed -E -n -e 's/.*--version=(.*) --file.*/\1/p'
+    version=$(gh run view "$run_id" --log | grep 'Updating coreupdate updateservicectl package create' | sed -E -n -e 's/.*--version=(.*) --file.*/\1/p')
+    if [ $? -ne 0 ] || [ -z "$version" ]; then
+        echo "Failed to fetch version automatically. Please enter the version manually."
+        version=$(get_input "$(printf "\033[1;33mEnter version\033[0m")")
+    fi
+    # Prompt the user to confirm or enter a different version
+    printf "\033[1;33mPress Enter to use \"%s\" version or type a different version: \033[0m" "$version"
+    read -r use_different_version
+    if [ -n "$use_different_version" ]; then
+        version="$use_different_version"
+    fi
+
+    # If version is still empty, prompt the user again
+    if [ -z "$version" ]; then
+        printf "Version is required. Exiting...\n"
+        exit 1
+    fi
+    VERSION="$version"
+    printf "\033[1;36mVersion:\033[0m %s\n" "$VERSION"
 }
 
 choose_service_name() {
@@ -239,32 +257,13 @@ get_branch_inputs() {
         BRANCH="$user_input"
     fi
 }
+
+
 get_inputs() {
 
     get_branch_inputs
-     # Fetch the version
-    echo "Fetching version..."
-    version=$(get_version)
-    if [ $? -ne 0 ] || [ -z "$version" ]; then
-        echo "Failed to fetch version automatically. Please enter the version manually."
-        version=$(get_input "$(printf "\033[1;33mEnter version\033[0m")")
-    fi
-
-    # Prompt the user to confirm or enter a different version
-    printf "\033[1;33mPress Enter to use \"%s\" version or type a different version: \033[0m" "$version"
-    read -r use_different_version
-    if [ -n "$use_different_version" ]; then
-        version="$use_different_version"
-    fi
-
-    # If version is still empty, prompt the user again
-    if [ -z "$version" ]; then
-        printf "Version is required. Exiting...\n"
-        exit 1
-    fi
-
-    VERSION="$version"
-    printf "\033[1;36mVersion:\033[0m %s\n" "$VERSION"
+    printf "Fetching version...\n"
+    get_version
     REPLICAS=$(get_input "$(printf "\033[1;33mEnter number of replicas\033[0m")")
     NUM_USERS=$(get_input "$(printf "\033[1;33mEnter number of users\033[0m")")
     SPAWN_RATE=$(get_input "$(printf "\033[1;33mEnter spawn rate\033[0m")")
@@ -279,11 +278,11 @@ get_inputs() {
     printf "\033[1;36mNumber of Users:\033[0m %s\n" "$NUM_USERS"
     printf "\033[1;36mSpawn Rate:\033[0m %s\n" "$SPAWN_RATE"
     printf "\033[1;36mTest Duration:\033[0m %s\n" "$TEST_DURATION"
-    printf "\n\033[1;33mDo you want to proceed with these parameters? (y/N): \033[0m"
+    printf "\n\033[1;33mPress Enter to proceed with these parameters or type 'n' to cancel: \033[0m"
     read -r proceed
     if [[ $proceed =~ ^[Nn]$ ]]; then
-        printf "Exiting...\n"
-        exit 0
+    printf "Exiting...\n"
+    exit 0
     fi
 }
 
@@ -353,7 +352,8 @@ show_menu() {
         3) 
             ask_workflow_name
             get_branch_inputs
-            VERSION=$(get_input "$(printf "\033[1;33mEnter version\033[0m")")
+            printf "Fetching version...\n"
+            get_version
             REPLICAS="0"
             NUM_USERS="1"
             SPAWN_RATE="1"
@@ -367,8 +367,7 @@ show_menu() {
             printf "\033[1;36mNumber of Users:\033[0m %s\n" "$NUM_USERS"
             printf "\033[1;36mSpawn Rate:\033[0m %s\n" "$SPAWN_RATE"
             printf "\033[1;36mTest Duration:\033[0m %s\n" "$TEST_DURATION"
-            printf "\n\033[1;33mDo you want to proceed with these parameters? (y/N): \033[0m"
-
+            printf "\n\033[1;33mPress Enter to proceed with these parameters or type 'n' to cancel: \033[0m"
             read -r proceed
             if [[ $proceed =~ ^[Nn]$ ]]; then
             printf "Exiting...\n"
