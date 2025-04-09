@@ -1,3 +1,7 @@
+# Clone the repository https://github.com/glcp/ccs-scale and run this script from the root directory of the repository
+# This script is used to run performance tests on a mainline or a specific branch of the ccs-scale repository using GitHub Actions.
+
+
 #!/bin/bash
 
 # Function to check if gh CLI is installed
@@ -53,6 +57,19 @@ get_latest_run_id() {
     done
 
     echo "$run_id"
+}
+
+get_version() {
+    if [ -z "$BRANCH" ]; then
+        echo "Branch is not set. Please call get_branch_inputs first."
+        return 1
+    fi
+    run_id=$(gh run list --workflow manual_build.yaml -b "${BRANCH}" --json databaseId --jq '.[0].databaseId')
+    if [ -z "$run_id" ]; then
+        echo "No runs found for workflow manual_build.yaml on branch ${BRANCH}."
+        return 1
+    fi
+    gh run view "$run_id" --log | grep 'Updating coreupdate updateservicectl package create' | sed -E -n -e 's/.*--version=(.*) --file.*/\1/p'
 }
 
 choose_service_name() {
@@ -212,19 +229,42 @@ get_branch_inputs() {
     # Get the current branch or ask for it
     BRANCH=$(get_current_branch)
 
-    # Confirm branch or ask for a different one
+    # Prompt the user to confirm or enter a different branch
     printf "\033[1;34mPlease enter the following required values:\033[0m\n"
-    printf "\033[1;33mDo you want to use \"$BRANCH\" branch? (y/N): \033[0m"
-    read -r use_different_branch
-    if [[ $use_different_branch =~ ^[Nn]$ ]]; then
-        BRANCH=$(get_input "$(printf "\033[1;33mEnter branch name\033[0m")")
+    printf "\033[1;33mPress Enter to use \"%s\" branch or type a different branch name: \033[0m" "$BRANCH"
+    read -r user_input
+
+    # If the user presses Enter, keep the current branch
+    if [ -n "$user_input" ]; then
+        BRANCH="$user_input"
     fi
 }
 get_inputs() {
 
     get_branch_inputs
-    # Get all required inputs
-    VERSION=$(get_input "$(printf "\033[1;33mEnter version\033[0m")")
+     # Fetch the version
+    echo "Fetching version..."
+    version=$(get_version)
+    if [ $? -ne 0 ] || [ -z "$version" ]; then
+        echo "Failed to fetch version automatically. Please enter the version manually."
+        version=$(get_input "$(printf "\033[1;33mEnter version\033[0m")")
+    fi
+
+    # Prompt the user to confirm or enter a different version
+    printf "\033[1;33mPress Enter to use \"%s\" version or type a different version: \033[0m" "$version"
+    read -r use_different_version
+    if [ -n "$use_different_version" ]; then
+        version="$use_different_version"
+    fi
+
+    # If version is still empty, prompt the user again
+    if [ -z "$version" ]; then
+        printf "Version is required. Exiting...\n"
+        exit 1
+    fi
+
+    VERSION="$version"
+    printf "\033[1;36mVersion:\033[0m %s\n" "$VERSION"
     REPLICAS=$(get_input "$(printf "\033[1;33mEnter number of replicas\033[0m")")
     NUM_USERS=$(get_input "$(printf "\033[1;33mEnter number of users\033[0m")")
     SPAWN_RATE=$(get_input "$(printf "\033[1;33mEnter spawn rate\033[0m")")
