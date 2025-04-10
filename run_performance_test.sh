@@ -91,11 +91,15 @@ get_version() {
 }
 
 choose_service_name() {
+    local include_all=$1
     printf "Choose service name:\n"
     printf "1. use-platform-support-frontend-service-coveo\n"
     printf "2. use-platform-support-frontend-service-feedback\n"
     printf "3. use-support-case-services\n"
     printf "4. Enter service name\n"
+    if [ "$include_all" == "true" ]; then
+        printf "5. All services\n"
+    fi
     read -p "Enter your choice: " choice
     case $choice in
         1)
@@ -109,6 +113,9 @@ choose_service_name() {
             ;;
         4)
             read -p "Enter service name: " service_name
+            ;;
+        5)
+            service_name="all"
             ;;
         *)
             printf "Invalid choice. Exiting...\n"
@@ -289,7 +296,7 @@ get_inputs() {
 get_deployments_and_pods() {
     printf "\033[1;33mSelect from the available services or Enter the service name\033[0m\n"
     printf "\033[1;33mPlease enter service name as all if you want to get all deployments and pods\033[0m\n"
-    choose_service_name
+    choose_service_name "true"
 
     printf "Fetching deployments and pods information for service: %s...\n" "$service_name"
 
